@@ -4,6 +4,7 @@ a specified URL using BeautifulSoup.
 """
 
 from uuid import uuid4
+
 from telegram import InlineQueryResultDocument
 
 
@@ -22,7 +23,7 @@ class MyrientScrapper:
         self.url = url
         self.soup = soup
 
-    def get_games(self, query):
+    async def get_games(self, query):
         """Retrieves a list of games that match the given query."""
         formatted_query = self._format_query(query)
         table_cells = self.soup.select("tr > td")
@@ -45,14 +46,14 @@ class MyrientScrapper:
             game_ref = game[0].a.get("href")
             sec1 = game_name.find("(") + 1
             sec2 = game_name.find("(", sec1)
-            dot_index = game_name.find(".")
+            dot_index = game_name.rfind(".")
 
             if sec2 == -1:
                 sec2 = dot_index + 1
                 languages = ""
             else:
                 languages = game_name[sec2:dot_index]
-
+            description = game_name[sec1:dot_index]
             regions = game_name[sec1 : sec2 - 2]
             size = game[1].get_text()
 
@@ -68,7 +69,7 @@ class MyrientScrapper:
                 results.append(
                     InlineQueryResultDocument(
                         id=str(uuid4()),
-                        title=game_name,
+                        title=game_name[0:sec1 - 2],
                         document_url=self.url + game_ref,
                         mime_type="application/zip",
                         description=size + " - " + regions + " " + languages,
