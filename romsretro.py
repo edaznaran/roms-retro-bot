@@ -13,17 +13,7 @@ Run python romsretro.py and then talk to the bot using inline mode.
 Press Ctrl-C on the command line or send a signal to the process to stop the
 bot.
 """
-import logging
-import os
-
-import requests
-from bs4 import BeautifulSoup
-from dotenv import load_dotenv
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram import __version__ as TG_VER
-from telegram.ext import CallbackQueryHandler, InlineQueryHandler
-
-from myrient_scrapper import MyrientScrapper
 
 try:
     from telegram import __version_info__
@@ -37,7 +27,22 @@ if __version_info__ < (20, 0, 0, "alpha", 1):
         f"visit https://docs.python-telegram-bot.org/en/v{TG_VER}/examples.html"
     )
 
-from telegram.ext import Application, CommandHandler, ContextTypes
+import logging
+import os
+
+import requests
+from bs4 import BeautifulSoup
+from dotenv import load_dotenv
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import (
+    Application,
+    CallbackQueryHandler,
+    CommandHandler,
+    ContextTypes,
+    InlineQueryHandler,
+)
+
+from myrient_scrapper import MyrientScrapper
 
 # Load environment variables
 load_dotenv()
