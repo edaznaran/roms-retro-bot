@@ -13,7 +13,14 @@ Run python romsretro.py and then talk to the bot using inline mode.
 Press Ctrl-C on the command line or send a signal to the process to stop the
 bot.
 """
+import logging
+import os
+
+from telegram import (InlineKeyboardButton, InlineKeyboardMarkup,
+                      InlineQueryResultsButton, Update)
 from telegram import __version__ as TG_VER
+from telegram.ext import (Application, CallbackQueryHandler, CommandHandler,
+                          ContextTypes, InlineQueryHandler)
 
 try:
     from telegram import __version_info__
@@ -27,20 +34,9 @@ if __version_info__ < (20, 0, 0, "alpha", 1):
         f"visit https://docs.python-telegram-bot.org/en/v{TG_VER}/examples.html"
     )
 
-import logging
-import os
-
 import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import (
-    Application,
-    CallbackQueryHandler,
-    CommandHandler,
-    ContextTypes,
-    InlineQueryHandler,
-)
 
 from myrient_scrapper import MyrientScrapper
 
@@ -56,6 +52,14 @@ logging.basicConfig(
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a message when the command /start is issued."""
+    if update.message is None:
+        if update.callback_query is not None:
+            await update.callback_query.answer("Error: No se pudo obtener el mensaje.")
+        else:
+            # Fallback: send a message if both are None (should not happen)
+            logging.error(
+                "Both update.message and update.callback_query are None.")
+        return
     await update.message.reply_markdown_v2(
         r"Hola, soy @romsretrobot, un bot con funciones inline capaz de proporcionar juegos de"
         r" múltiples consolas de Nintendo, PlayStation y Sega\."
@@ -70,6 +74,14 @@ async def help_command(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
     """Send a message when the command /help is issued."""
+    if update.message is None:
+        if update.callback_query is not None:
+            await update.callback_query.answer("Error: No se pudo obtener el mensaje.")
+        else:
+            # Fallback: send a message if both are None (should not happen)
+            logging.error(
+                "Both update.message and update.callback_query are None.")
+        return
     await update.message.reply_markdown_v2(
         r"*_Inline bot_\.\.\. ¿Qué significa esto?*"
         "\n\n"
@@ -87,6 +99,15 @@ async def help_command(
 
 
 async def settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send a message when the command /settings is issued."""
+    if update.message is None:
+        if update.callback_query is not None:
+            await update.callback_query.answer("Error: No se pudo obtener el mensaje.")
+        else:
+            # Fallback: send a message if both are None (should not happen)
+            logging.error(
+                "Both update.message and update.callback_query are None.")
+        return
     keyboard = [
         [
             InlineKeyboardButton(
@@ -103,38 +124,56 @@ async def settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "Elija una opción:", reply_markup=reply_markup
     )
 
+# request will be stored in context.application for global access
+
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Parses the CallbackQuery and updates the message text."""
     query = update.callback_query
+    if query is None:
+        if update.message is not None:
+            await update.message.reply_text("Error: No se pudo obtener la consulta.")
+        else:
+            logging.error(
+                "Both update.callback_query and update.message are None.")
+        return
 
     # CallbackQueries need to be answered, even if no notification to the user is needed
     # Some clients may have trouble otherwise. See https://core.telegram.org/bots/api#callbackquery
     await query.answer()
 
+    url = None
+    repository = os.getenv("GAMES_REPO")
+    if repository is None:
+        await query.edit_message_text(text="Error: No se ha configurado el repositorio de juegos.")
+        return
     if query.data == "Game Boy Advance":
         url = (
-            os.getenv("GAMES_REPO")
-            + "No-Intro/Nintendo%20-%20Game%20Boy%20Advance/"
+            repository + "No-Intro/Nintendo%20-%20Game%20Boy%20Advance/"
         )
     elif query.data == "Nintendo 64":
         url = (
-            os.getenv("GAMES_REPO")
-            + "No-Intro/Nintendo%20-%20Nintendo%2064%20(BigEndian)/"
+            repository + "No-Intro/Nintendo%20-%20Nintendo%2064%20(BigEndian)/"
         )
     elif query.data == "PlayStation":
-        url = os.getenv("GAMES_REPO") + "Redump/Sony%20-%20PlayStation/"
+        url = repository + "Redump/Sony%20-%20PlayStation/"
 
     # preparar los datos de la página web
-    r = requests.get(url)
+    if url:
+        r = requests.get(url, timeout=10)
+    else:
+        await query.edit_message_text(text="Error: URL no válida.")
+        return
 
     # create a BeautifulSoup object
     soup = BeautifulSoup(r.content, "html.parser")
 
     # this object will be used to make requests to the website
-    global request
-    request = MyrientScrapper(url, soup)
-
+    # Store the MyrientScrapper instance in context.application for global access
+    if context.application:
+        logging.error("context.application is None. Initializing MyrientScrapper.")
+        return
+    context.application.request = MyrientScrapper(url, soup)
     # return a message to the user
     await query.edit_message_text(
         text=f"Ahora se mostrarán juegos de {query.data}."
@@ -145,14 +184,33 @@ async def inline_query(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
     """Handle the inline query. This is run when you type: @botusername <query>"""
+    if update.inline_query is None:
+        if update.message is not None:
+            await update.message.reply_text("Error: No se pudo obtener la consulta.")
+        else:
+            logging.error(
+                "Both update.inline_query and update.message are None.")
+        return
     query = update.inline_query.query
+
+    # Get the request object from context.application
+    request = getattr(context.application, "request", None)
+    if request is None:
+        await update.inline_query.answer(
+            results=[],
+            button=InlineQueryResultsButton(
+                text="¡Primero debes usar el comando /settings para configurarme!",
+                start_parameter="0",
+            ),
+        )
+        return
 
     if not query:
         results = await request.get_games(
             ""
         )  # empty query should not be handled
-
-    results = await request.get_games(query)
+    else:
+        results = await request.get_games(query)
 
     await update.inline_query.answer(results)
 
@@ -160,7 +218,11 @@ async def inline_query(
 def main() -> None:
     """Run the bot."""
     # Create the Application and pass it your bot's token.
-    application = Application.builder().token(os.getenv("API_TOKEN")).build()
+    token = os.getenv("API_TOKEN")
+    if not token:
+        raise ValueError("API_TOKEN environment variable not set.")
+    logging.info("Starting bot with token: %s", token)
+    application = Application.builder().token(token).build()
 
     # on different commands - answer in Telegram
     application.add_handler(CommandHandler("start", start))
