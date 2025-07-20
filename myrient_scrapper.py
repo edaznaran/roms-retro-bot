@@ -18,7 +18,6 @@ class MyrientScrapper:
     soup : BeautifulSoup
         The BeautifulSoup object containing the parsed HTML of the Myrient webpage.
     """
-
     def __init__(self, url, soup):
         self.url = url
         self.soup = soup
@@ -34,7 +33,7 @@ class MyrientScrapper:
             if table_cells[i].a.get("title") is None:
                 continue
             if all(x in table_cells[i].a["title"] for x in formatted_query):
-                games.append(table_cells[i: i + 3])
+                games.append(table_cells[i:i + 3])
 
         response = self._make_results(games)
         return response
@@ -54,8 +53,8 @@ class MyrientScrapper:
                 languages = ""
             else:
                 languages = game_name[sec2:dot_index]
-            description = game_name[sec1:dot_index]
-            regions = game_name[sec1: sec2 - 2]
+            # description = game_name[sec1:dot_index]
+            regions = game_name[sec1:sec2 - 2]
             size = game[1].get_text()
 
             print(game_name + " - " + size)
