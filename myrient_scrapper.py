@@ -9,13 +9,11 @@ from telegram import InlineQueryResultDocument
 
 
 class MyrientScrapper:
-    """
-    A class used to scrape game information from the Myrient website.
-    Attributes
-    ----------
-    url : str
+    """A class used to scrape game information from the Myrient website.
+
+    :param url: str
         The base URL of the Myrient website.
-    soup : BeautifulSoup
+    :param soup: BeautifulSoup
         The BeautifulSoup object containing the parsed HTML of the Myrient webpage.
     """
     def __init__(self, url, soup):
