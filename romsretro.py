@@ -252,7 +252,7 @@ async def inline_query(
         )
         return
 
-    results = await get_games(request, query if query else "")
+    results = get_games(request, query if query else "")
 
     await update.inline_query.answer(results)
 

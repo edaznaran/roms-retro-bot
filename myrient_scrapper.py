@@ -6,7 +6,7 @@ a specified URL using BeautifulSoup.
 from dataclasses import dataclass
 from uuid import uuid4
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from telegram import InlineQueryResultDocument
 
 
@@ -23,13 +23,14 @@ class MyrientScrapper:
     soup: BeautifulSoup
 
 
-async def get_games(scrapper: MyrientScrapper, query):
+def get_games(scrapper: MyrientScrapper,
+              query) -> list[InlineQueryResultDocument]:
     """Retrieves a list of games that match the given query."""
     formatted_query = _format_query(query)
     table_cells = scrapper.soup.select("tr > td")
 
     # The games are stored in groups of 3 in the table_cells list.
-    games = []
+    games: list[list[Tag]] = []
     for i in range(0, len(table_cells), 3):
         a_tag = table_cells[i].a
         if a_tag is None or a_tag.get("title") is None:
@@ -41,13 +42,21 @@ async def get_games(scrapper: MyrientScrapper, query):
     return response
 
 
-def _make_results(games, base_url):
+def _make_results(games: list[list[Tag]],
+                  base_url: str) -> list[InlineQueryResultDocument]:
     """Creates InlineQueryResultDocument objects from game data."""
     count = 0
-    results = []
+    results: list[InlineQueryResultDocument] = []
     for game in games:
-        game_name = game[0].a.get("title")
-        game_ref = game[0].a.get("href")
+        a_tag = game[0].a
+        if a_tag is None or a_tag.get("title") is None:
+            continue
+        game_name = a_tag.get("title")
+        game_ref = a_tag.get("href")
+        if game_name is None or game_ref is None:
+            continue
+        game_name = str(game_name)
+        game_ref = str(game_ref)
         sec1 = game_name.find("(") + 1
         sec2 = game_name.find("(", sec1)
         dot_index = game_name.rfind(".")
@@ -85,7 +94,7 @@ def _make_results(games, base_url):
     return results
 
 
-def _format_query(query):
+def _format_query(query: str) -> list[str]:
     """Formats the given query string for use in the Myrient website."""
     if query == "":
         return [""]
