@@ -237,11 +237,11 @@ async def inline_query(
     query = update.inline_query.query
 
     # Get the request object from application.bot_data
-    request: MyrientScrapper | None = context.application.bot_data.get(
+    scrapper: MyrientScrapper | None = context.application.bot_data.get(
         "request"
     )
 
-    if request is None:
+    if scrapper is None:
         await update.inline_query.answer(
             results=[],
             button=InlineQueryResultsButton(
@@ -252,7 +252,7 @@ async def inline_query(
         )
         return
 
-    results = get_games(request, query if query else "")
+    results = get_games(scrapper, query if query else "")
 
     await update.inline_query.answer(results)
 
