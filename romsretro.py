@@ -46,7 +46,7 @@ import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
-from myrient_scrapper import MyrientScrapper
+from myrient_scrapper import MyrientScrapper, get_games
 
 # Load environment variables
 load_dotenv()
@@ -252,7 +252,7 @@ async def inline_query(
         )
         return
 
-    results = await request.get_games(query if query else "")
+    results = await get_games(request, query if query else "")
 
     await update.inline_query.answer(results)
 
